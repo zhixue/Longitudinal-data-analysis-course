@@ -1,0 +1,91 @@
+---
+title: "Lda5"
+author: "zhixue"
+date: "6/9/2019"
+output: html_document
+---
+
+In a clinical trial of patients suffering from epileptic seizures, patients were randomized to receive either a placebo or the drug progabide, in addition to standard therapy. A baseline count of the number of epileptic seizures in an 8-week period prior to randomization was obtained. In addition counts of the number of epileptic seizures in each of four successive 2-week (post-baseline) treatment periods were obtained. The goal of the analysis is to make a com- parison between the two treatment groups in terms of changes in the rates of epileptic seizures throughout the duration of the study.  
+The raw data are stored in an external file: epilepsy-data.txt  
+Each row of the data set contains the following eight variables: ID, Y1, Y2, Y3, Y4, Treatment, Y0, Age  
+Note: The response variable Y0 is a baseline count of the number of epilep- tic seizures in an 8-week interval. The response variables Yj are counts of the number of epileptic seizures in the four successive 2-week (post-baseline) treatment intervals, for j = 1, . . . , 4. The categorical variable Treatment is coded 1 = Progabide, 0 = Placebo. The variable Age is the age of each patient (in years) at baseline.
+
+
+1. Consider a model for the log seizure rate that includes the main effects of treatment and time (where time is regarded as a categorical vari- able with five levels), and their interaction. Use generalized estimating equations (GEE), assuming separate pairwise correlations among the five responses. Construct a test of the null hypothesis of no effect of treatment on changes in the log seizure rate based on the empirical standard errors.
+
+```{r 5.1}
+#install.packages('geepack')
+library("geepack")
+# read data
+dat = read.table('epilepsy-data.txt',header = FALSE)
+colnames(dat) = c('ID', 'Treatment', 'Age', 'Y0', 'Y1', 'Y2', 'Y3', 'Y4' )
+
+# to long data
+#install.packages("reshape2")
+library(reshape2)
+newdat <- melt(dat,id.vars=c("ID","Treatment","Age"))
+colnames(newdat) = c('ID', 'Treatment', 'Age', 'Time', 'Y')
+newdat$Time = as.factor(as.numeric(newdat$Time))
+# sorted by id
+newdat = newdat[order(newdat[,1]),]
+
+mf=formula(Y~Treatment+Time+Treatment*Time)
+m1=geeglm(mf,data=newdat,id=ID,family = poisson(link="log"),corstr="unstructured")
+summary(m1)
+```
+$H_0$: no effect of treatment  
+P>0.05, so we can not reject $H_0$
+
+--------------
+
+2. What conclusions do you draw about the effect of treatment on changes in the log seizure rate?
+
+```{r 5.2}
+mf=formula(Y~Treatment)
+m2=geeglm(mf,data=newdat,id=ID,family = poisson(link="log"),corstr="unstructured")
+summary(m2)
+```
+$H_0$: no effect of treatment  
+P<0.05, so we can reject $H_0$
+
+-----
+
+3. Construct a new variable, Ptime, where: Ptime = 0 if baseline, and Ptime = 1 if post-baseline (any of the four successive 2-week intervals). Repeat the analysis for Problem 1 using Ptime (instead of time as a categorical variable with five levels). Construct a test of the null hypothesis of no effect of treatment on changes in the log seizure rate based on the empirical standard errors.
+
+```{r 5.3}
+newdat$Ptime = as.factor(as.numeric(newdat$Time) > 1)
+mf=formula(Y~Treatment+Ptime+Treatment*Ptime)
+m3=geeglm(mf,data=newdat,id=ID,family = poisson(link="log"),corstr="unstructured")
+summary(m3)
+```
+$H_0$: no effect of treatment  
+P>0.05, so we can not reject $H_0$
+
+-------
+
+4. From the results of the analysis for Problem 3, what conclusions do you draw about the effect of treatment on changes in the log seizure rate?
+
+* no effect of treatment
+
+------
+
+5. Patient 49 (ID = 49) is a potential outlier. This patient reported 151 seizures during the 8-week baseline interval and 302 (102+65+72+63) seizures during the four successive 2-week intervals. Repeat all of the analyses in Problems 1 to 4, excluding all of the repeated count data from patient 49. When the data from patient 49 are excluded, what conclusions do you draw about the effect of treatment on changes in the log seizure rate?
+
+```{r 5.5}
+newdat_no49 = newdat[which(newdat$ID != 49),]
+
+# Q1
+mf=formula(Y~Treatment+Time+Treatment*Time)
+m1=geeglm(mf,data=newdat_no49,id=ID,family = poisson(link="log"),corstr="unstructured")
+summary(m1)
+# Q2
+mf=formula(Y~Treatment)
+m2=geeglm(mf,data=newdat_no49,id=ID,family = poisson(link="log"),corstr="unstructured")
+summary(m2)
+# Q3
+mf=formula(Y~Treatment+Ptime+Treatment*Ptime)
+m3=geeglm(mf,data=newdat_no49,id=ID,family = poisson(link="log"),corstr="unstructured")
+summary(m3)
+```
+
+* no effect of treatment
